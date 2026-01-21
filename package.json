@@ -1,19 +1,27 @@
 {
-  "name": "pkg-placeholder",
+  "name": "x-messager-puppeteer",
   "type": "module",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "packageManager": "pnpm@10.25.0",
-  "description": "_description_",
-  "author": "Anthony Fu <anthonyfu117@hotmail.com>",
+  "description": "A powerful TypeScript library for fetching Twitter/X user tweets using Puppeteer with parallel processing and retry mechanisms",
+  "author": "Foreverddb",
   "license": "MIT",
-  "funding": "https://github.com/sponsors/antfu",
-  "homepage": "https://github.com/antfu/pkg-placeholder#readme",
+  "homepage": "https://github.com/Foreverddb/x-messager-puppeteer#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/antfu/pkg-placeholder.git"
+    "url": "git+https://github.com/Foreverddb/x-messager-puppeteer.git"
   },
-  "bugs": "https://github.com/antfu/pkg-placeholder/issues",
-  "keywords": [],
+  "bugs": "https://github.com/Foreverddb/x-messager-puppeteer/issues",
+  "keywords": [
+    "twitter",
+    "x",
+    "puppeteer",
+    "scraper",
+    "crawler",
+    "tweets",
+    "social-media",
+    "automation"
+  ],
   "sideEffects": false,
   "exports": {
     ".": "./dist/index.mjs",
@@ -23,6 +31,7 @@
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
   "files": [
+    "README.md",
     "dist"
   ],
   "scripts": {
@@ -35,6 +44,9 @@
     "test": "vitest",
     "typecheck": "tsc",
     "prepare": "simple-git-hooks"
+  },
+  "dependencies": {
+    "puppeteer": "catalog:"
   },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:cli",
@@ -60,8 +72,5 @@
   },
   "lint-staged": {
     "*": "eslint --fix"
-  },
-  "dependencies": {
-    "puppeteer": "catalog:"
   }
 }
