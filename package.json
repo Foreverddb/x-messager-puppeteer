@@ -60,5 +60,8 @@
   },
   "lint-staged": {
     "*": "eslint --fix"
+  },
+  "dependencies": {
+    "puppeteer": "catalog:"
   }
 }
