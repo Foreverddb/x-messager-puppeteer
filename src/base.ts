@@ -1,6 +1,6 @@
 import type { AuthInfo, FetchOptions, IBrowserContext, InitContextOptions, TweetInfo, UserTweetsResult } from './types'
 import puppeteer from 'puppeteer'
-import { sleep } from './common'
+import { sleep, transformTweetImages } from './common'
 
 /**
  * 创建一个已验证授权的浏览器上下文
@@ -40,7 +40,7 @@ export async function createAuthedContext(authInfo: AuthInfo, options: InitConte
  * @returns 推文列表，获取失败的推文不会在列表中
  */
 export async function fetchSingleUser(context: IBrowserContext, userId: string, startTime: string): Promise<TweetInfo[]> {
-  const options = context.fetchOptions || {}
+  const options: FetchOptions = context.fetchOptions ?? {}
   const maxRetries = options.maxRetries ?? 3
   const beforeRetry = options.beforeRetry
 
@@ -55,7 +55,8 @@ export async function fetchSingleUser(context: IBrowserContext, userId: string, 
         console.warn(`重试获取用户 ${userId} 的推文 (第 ${attempt}/${maxRetries} 次)...`)
       }
 
-      return await scrapeUserTweets(context, userId, startTime)
+      const tweets = await scrapeUserTweets(context, userId, startTime)
+      return await transformTweetImages(context, tweets, options)
     }
     catch (error) {
       lastError = error as Error

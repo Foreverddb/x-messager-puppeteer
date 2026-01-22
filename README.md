@@ -13,6 +13,7 @@ A powerful TypeScript library for fetching Twitter/X user tweets using Puppeteer
 - 🔄 **Automatic Retry** - Configurable retry mechanism with customizable hooks
 - 📅 **Time-based Filtering** - Fetch tweets from a specific start time
 - 🖼️ **Image Support** - Extract tweet images automatically
+- 📥 **Optional Downloads** - Save images locally with organized user folders
 - 🎯 **Latest Tweet Tracking** - Get the most recent tweet timestamp for each user
 - 💪 **TypeScript** - Full type safety and IntelliSense support
 - ⚡ **Efficient** - Smart scrolling and deduplication
@@ -57,6 +58,8 @@ tweets.forEach((tweet) => {
 await context.closeAll()
 ```
 
+When `downloadImages` is enabled, every tweet image is saved inside `<project root>/<downloadPath>/<userId>/<timestamp>-<index>.ext`. The `imageUrls` array for each tweet then contains relative paths such as `username/1700000000-1.jpg` instead of remote URLs.
+
 ### Batch Processing - Multiple Users
 
 ```typescript
@@ -93,6 +96,8 @@ const context = await createAuthedContext({
   auth_token: 'your_twitter_auth_token',
 }, {
   proxyServer: '127.0.0.1:7890',
+  downloadImages: true,
+  downloadPath: 'downloads/tweet-images',
   maxRetries: 3, // Retry up to 3 times per user
   beforeRetry: async (userId, attempt, error) => {
     console.log(`Retrying ${userId} (attempt ${attempt})`)
@@ -133,6 +138,8 @@ Create an authenticated browser context for Twitter/X.
   - `headless`: Whether to run the browser in headless mode
   - `maxRetries`: Max retry attempts per user (default: `3`)
   - `beforeRetry`: Hook executed before each retry `(userId, attempt, error)`
+  - `downloadImages`: Toggle automatic tweet image download (default: `false`)
+  - `downloadPath`: Target directory for downloaded images, relative to your project root (default: `tweet-images`)
 
 **Returns:** `Promise<IBrowserContext>`
 
@@ -150,6 +157,8 @@ Fetch tweets from a single user.
 Automatically retries according to the `maxRetries`/`beforeRetry` options provided when creating the context.
 
 **Returns:** `Promise<TweetInfo[]>`
+
+If `downloadImages` is enabled on the context, each `imageUrls` entry becomes a relative file path (e.g., `username/1700000000-1.jpg`). Otherwise, the original remote URLs are returned.
 
 **TweetInfo Interface:**
 ```typescript
@@ -179,6 +188,16 @@ interface UserTweetsResult {
   userId: string
   tweets: TweetInfo[]
   latestTweetTime: string | null // Most recent tweet time or null if no tweets
+}
+```
+
+**FetchOptions Interface:**
+```typescript
+interface FetchOptions {
+  maxRetries?: number
+  beforeRetry?: (userId: string, attempt: number, error: Error) => Promise<void> | void
+  downloadImages?: boolean
+  downloadPath?: string
 }
 ```
 

@@ -49,6 +49,10 @@ export interface FetchOptions {
   maxRetries?: number
   /** 在每次重试前执行的钩子函数 */
   beforeRetry?: (userId: string, attempt: number, error: Error) => Promise<void> | void
+  /** 是否自动下载推文中的图片 */
+  downloadImages?: boolean
+  /** 下载图片保存的根目录（相对于调用方项目根目录） */
+  downloadPath?: string
 }
 
 /**
