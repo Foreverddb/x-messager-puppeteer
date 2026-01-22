@@ -8,6 +8,7 @@ import { sleep, transformTweetImages } from './common'
 export async function createAuthedContext(authInfo: AuthInfo, options: InitContextOptions & Partial<FetchOptions>): Promise<IBrowserContext> {
   const browser = await puppeteer.launch({
     headless: options.headless,
+    args: ['--window-size=1920,1080'],
   })
   const context = await browser.createBrowserContext({
     proxyServer: options.proxyServer,
@@ -89,6 +90,8 @@ async function scrapeUserTweets(context: IBrowserContext, userId: string, startT
       waitUntil: 'networkidle2',
       timeout: 60000,
     })
+
+    console.warn(`[${new Date().toLocaleTimeString()}]进入用户${userId}主页`)
 
     await sleep(10)
 
@@ -195,6 +198,8 @@ async function scrapeUserTweets(context: IBrowserContext, userId: string, startT
           // 检查时间是否早于startTime
           const tweetTime = new Date(tweet.time).getTime()
 
+          console.warn(`[${tweet.id} ${new Date().toLocaleTimeString()}]对比时间，${tweetTime} [${tweet.time}] - ${startTimeMs} [${startTime}]`)
+
           if (startTime && tweetTime < startTimeMs) {
             // 如果是置顶推文且时间早于startTime，跳过但不停止抓取
             if (tweet.isPinned) {
@@ -214,6 +219,7 @@ async function scrapeUserTweets(context: IBrowserContext, userId: string, startT
           nonPinnedOldTweetCount = 0
 
           tweets.push({
+            url: tweet.id,
             userId: tweet.userId,
             textContent: tweet.textContent,
             time: tweet.time,
@@ -239,14 +245,16 @@ async function scrapeUserTweets(context: IBrowserContext, userId: string, startT
         break
       }
 
+      console.warn(`[${new Date().toLocaleTimeString()}]开始滚动第${scrollAttempts + 1}次`)
+
       // 滚动到页面底部
       await page.evaluate(() => {
         // @ts-expect-error - window and document are available in browser context
-        window.scrollTo(0, document.body.scrollHeight)
+        window.scrollTo(0, document.body.clientHeight + window.scrollY)
       })
 
       // 等待新内容加载
-      await sleep(2)
+      await sleep(5)
       scrollAttempts++
     }
 

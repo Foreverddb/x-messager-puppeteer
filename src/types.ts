@@ -19,6 +19,8 @@ export interface InitContextOptions {
  * 推文信息接口
  */
 export interface TweetInfo {
+  /** 推文链接 */
+  url: string
   /** 用户ID */
   userId: string
   /** 推文文本内容 */

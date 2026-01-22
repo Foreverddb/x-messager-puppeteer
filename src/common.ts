@@ -6,7 +6,7 @@ import path from 'node:path'
 import { cwd as getCwd } from 'node:process'
 
 const DEFAULT_DOWNLOAD_DIR = 'tweet-images'
-const IMAGE_DOWNLOAD_TIMEOUT_MS = 10000
+const IMAGE_DOWNLOAD_TIMEOUT_MS = 30000
 
 /**
  * 等待指定时间
