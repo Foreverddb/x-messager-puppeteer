@@ -1,7 +1,7 @@
 {
   "name": "x-messager-puppeteer",
   "type": "module",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "packageManager": "pnpm@10.25.0",
   "description": "A powerful TypeScript library for fetching Twitter/X user tweets using Puppeteer with parallel processing and retry mechanisms",
   "author": "Foreverddb",
@@ -53,6 +53,7 @@
     "@antfu/ni": "catalog:cli",
     "@antfu/utils": "catalog:inlined",
     "@types/node": "catalog:types",
+    "baseline-browser-mapping": "catalog:",
     "bumpp": "catalog:cli",
     "eslint": "catalog:cli",
     "lint-staged": "catalog:cli",

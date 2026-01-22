@@ -1,13 +1,18 @@
+catalogMode: prefer
+
+ignoreWorkspaceRootCheck: true
+
+shellEmulator: true
+trustPolicy: no-downgrade
+
 packages:
   - playground
   - docs
   - packages/*
   - examples/*
-
 catalog:
-  puppeteer: 'catalog:'
-
-catalogMode: prefer
+  baseline-browser-mapping: ^2.9.17
+  puppeteer: ^24.35.0
 
 catalogs:
   cli:
@@ -32,12 +37,6 @@ catalogs:
   types:
     '@types/node': ^25.0.1
 
-ignoreWorkspaceRootCheck: true
-
 onlyBuiltDependencies:
   - esbuild
   - simple-git-hooks
-
-shellEmulator: true
-
-trustPolicy: no-downgrade
