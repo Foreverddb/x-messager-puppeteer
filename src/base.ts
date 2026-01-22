@@ -1,6 +1,6 @@
 import type { AuthInfo, FetchOptions, IBrowserContext, InitContextOptions, TweetInfo, UserTweetsResult } from './types'
 import puppeteer from 'puppeteer'
-import { sleep, transformTweetImages } from './common'
+import { createTweetImageDownloader, sleep } from './common'
 
 /**
  * 创建一个已验证授权的浏览器上下文
@@ -56,8 +56,7 @@ export async function fetchSingleUser(context: IBrowserContext, userId: string, 
         console.warn(`重试获取用户 ${userId} 的推文 (第 ${attempt}/${maxRetries} 次)...`)
       }
 
-      const tweets = await scrapeUserTweets(context, userId, startTime)
-      return await transformTweetImages(context, tweets, options)
+      return await scrapeUserTweets(context, userId, startTime, options)
     }
     catch (error) {
       lastError = error as Error
@@ -78,12 +77,13 @@ export async function fetchSingleUser(context: IBrowserContext, userId: string, 
   throw lastError ?? new Error(`Failed to fetch tweets for user ${userId}`)
 }
 
-async function scrapeUserTweets(context: IBrowserContext, userId: string, startTime: string): Promise<TweetInfo[]> {
+async function scrapeUserTweets(context: IBrowserContext, userId: string, startTime: string, options: FetchOptions): Promise<TweetInfo[]> {
   const page = await context.newPage()
   await page.setViewport({
     width: 1920,
     height: 1080,
   })
+  const imageDownloader = await createTweetImageDownloader(context, options)
 
   try {
     await page.goto(`https://x.com/${userId}`, {
@@ -188,6 +188,7 @@ async function scrapeUserTweets(context: IBrowserContext, userId: string, startT
       }, { targetUserId: userId })
 
       // 处理新推文并去重
+      const pendingTweets: TweetInfo[] = []
       let addedCount = 0
       let nonPinnedOldTweetCount = 0 // 记录非置顶的旧推文数量
 
@@ -218,7 +219,7 @@ async function scrapeUserTweets(context: IBrowserContext, userId: string, startT
           // 重置计数器（如果遇到了符合时间条件的推文）
           nonPinnedOldTweetCount = 0
 
-          tweets.push({
+          pendingTweets.push({
             url: tweet.id,
             userId: tweet.userId,
             textContent: tweet.textContent,
@@ -228,6 +229,11 @@ async function scrapeUserTweets(context: IBrowserContext, userId: string, startT
 
           addedCount++
         }
+      }
+
+      if (pendingTweets.length > 0) {
+        const downloadedTweets = await imageDownloader.downloadTweets(pendingTweets)
+        tweets.push(...downloadedTweets)
       }
 
       if (addedCount === 0) {
@@ -261,6 +267,7 @@ async function scrapeUserTweets(context: IBrowserContext, userId: string, startT
     return tweets
   }
   finally {
+    await imageDownloader.close().catch(() => {})
     await page.close().catch(() => {})
   }
 }

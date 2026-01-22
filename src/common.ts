@@ -16,6 +16,40 @@ export async function sleep(time: number): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, time * 1000))
 }
 
+interface TweetImageDownloader {
+  downloadTweets: (tweets: TweetInfo[]) => Promise<TweetInfo[]>
+  close: () => Promise<void>
+}
+
+export async function createTweetImageDownloader(
+  context: IBrowserContext,
+  options: FetchOptions,
+): Promise<TweetImageDownloader> {
+  if (!options.downloadImages) {
+    return {
+      downloadTweets: async (tweets: TweetInfo[]) => tweets,
+      close: async () => {},
+    }
+  }
+
+  const downloadRoot = options.downloadPath && options.downloadPath.trim().length > 0
+    ? options.downloadPath
+    : DEFAULT_DOWNLOAD_DIR
+  const absoluteRoot = path.resolve(getCwd(), downloadRoot)
+
+  await mkdir(absoluteRoot, { recursive: true })
+
+  const downloadPage = await context.newPage()
+  await downloadPage.goto('about:blank').catch(() => {})
+
+  return {
+    downloadTweets: async (tweets: TweetInfo[]) => downloadTweetsWithPage(downloadPage, absoluteRoot, tweets),
+    close: async () => {
+      await downloadPage.close().catch(() => {})
+    },
+  }
+}
+
 /**
  * 处理转换推文中的图片链接为下载的本地文件路径
  * @param context
@@ -28,61 +62,56 @@ export async function transformTweetImages(
   tweets: TweetInfo[],
   options: FetchOptions,
 ): Promise<TweetInfo[]> {
-  if (!options.downloadImages)
-    return tweets
-
-  const downloadRoot = options.downloadPath && options.downloadPath.trim().length > 0
-    ? options.downloadPath
-    : DEFAULT_DOWNLOAD_DIR
-  const absoluteRoot = path.resolve(getCwd(), downloadRoot)
-
-  await mkdir(absoluteRoot, { recursive: true })
-
-  // 复用一个下载页面，依靠 waitForResponse 来拿到浏览器端的图片响应
-  const downloadPage = await context.newPage()
-  await downloadPage.goto('about:blank').catch(() => {})
-
+  const downloader = await createTweetImageDownloader(context, options)
   try {
-    const transformed: TweetInfo[] = []
-
-    for (const tweet of tweets) {
-      if (!tweet.imageUrls || tweet.imageUrls.length === 0) {
-        transformed.push(tweet)
-        continue
-      }
-
-      const userDir = path.join(absoluteRoot, tweet.userId)
-      await mkdir(userDir, { recursive: true })
-
-      const downloadedUrls: string[] = []
-
-      for (let index = 0; index < tweet.imageUrls.length; index++) {
-        const imageUrl = tweet.imageUrls[index]
-        const filename = createImageFilename(tweet.time, index + 1, imageUrl)
-        const targetPath = path.join(userDir, filename)
-
-        try {
-          const buffer = await downloadImageViaPage(downloadPage, imageUrl)
-          await writeFile(targetPath, buffer)
-          downloadedUrls.push(path.posix.join(tweet.userId, filename))
-        }
-        catch (error) {
-          console.error(`[${imageUrl}]下载用户 ${tweet.userId} 的图片失败:`, error)
-          downloadedUrls.push(imageUrl)
-        }
-      }
-
-      transformed.push({
-        ...tweet,
-        imageUrls: downloadedUrls,
-      })
-    }
-
-    return transformed
+    return await downloader.downloadTweets(tweets)
   }
   finally {
-    await downloadPage.close().catch(() => {})
+    await downloader.close()
   }
+}
+
+async function downloadTweetsWithPage(
+  downloadPage: Page,
+  absoluteRoot: string,
+  tweets: TweetInfo[],
+): Promise<TweetInfo[]> {
+  const transformed: TweetInfo[] = []
+
+  for (const tweet of tweets) {
+    if (!tweet.imageUrls || tweet.imageUrls.length === 0) {
+      transformed.push(tweet)
+      continue
+    }
+
+    const userDir = path.join(absoluteRoot, tweet.userId)
+    await mkdir(userDir, { recursive: true })
+
+    const downloadedUrls: string[] = []
+
+    for (let index = 0; index < tweet.imageUrls.length; index++) {
+      const imageUrl = tweet.imageUrls[index]
+      const filename = createImageFilename(tweet.time, index + 1, imageUrl)
+      const targetPath = path.join(userDir, filename)
+
+      try {
+        const buffer = await downloadImageViaPage(downloadPage, imageUrl)
+        await writeFile(targetPath, buffer)
+        downloadedUrls.push(path.posix.join(tweet.userId, filename))
+      }
+      catch (error) {
+        console.error(`[${imageUrl}]下载用户 ${tweet.userId} 的图片失败:`, error)
+        downloadedUrls.push(imageUrl)
+      }
+    }
+
+    transformed.push({
+      ...tweet,
+      imageUrls: downloadedUrls,
+    })
+  }
+
+  return transformed
 }
 
 function createImageFilename(tweetTime: string, index: number, imageUrl: string): string {
