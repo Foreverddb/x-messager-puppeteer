@@ -83,7 +83,7 @@ async function scrapeUserTweets(context: IBrowserContext, userId: string, startT
     width: 1920,
     height: 1080,
   })
-  const imageDownloader = await createTweetImageDownloader(context, options)
+  const imageDownloader = await createTweetImageDownloader(context, options, page)
 
   try {
     await page.goto(`https://x.com/${userId}`, {
@@ -256,7 +256,7 @@ async function scrapeUserTweets(context: IBrowserContext, userId: string, startT
         break
       }
 
-      console.warn(`[${new Date().toLocaleTimeString()}]开始滚动第${scrollAttempts + 1}次`)
+      console.warn(`[${new Date().toLocaleTimeString()}](${userId})开始滚动第${scrollAttempts + 1}次`)
 
       // 滚动到页面底部
       await page.evaluate(() => {
@@ -279,17 +279,18 @@ async function scrapeUserTweets(context: IBrowserContext, userId: string, startT
 
 /**
  * 批量获取多个用户从指定时间开始的所有推文（并行执行，重试逻辑由 fetchSingleUser 处理）
- * @param context 初始化过的浏览器上下文
+ * @param contextOptions 浏览器上下文初始化选项
  * @param userConfigs 用户配置列表，每项包含userId和startTime
  * @returns 用户推文结果列表，每项包含userId、tweets列表和latestTweetTime
  */
 export async function fetchMultipleUser(
-  context: IBrowserContext,
+  contextOptions: AuthInfo & InitContextOptions & Partial<FetchOptions>,
   userConfigs: Array<{ userId: string, startTime: string }>,
 ): Promise<UserTweetsResult[]> {
   // 为每个用户创建并行任务
   const fetchTasks = userConfigs.map(async (config) => {
     try {
+      const context = await createAuthedContext(contextOptions, contextOptions)
       const tweets = await fetchSingleUser(context, config.userId, config.startTime)
 
       // 找到最新推文的时间
@@ -303,6 +304,8 @@ export async function fetchMultipleUser(
       }
 
       console.warn(`成功获取用户 ${config.userId} 的 ${tweets.length} 条推文${latestTweetTime ? `，最新推文时间: ${latestTweetTime}` : ''}`)
+
+      await context.closeAll()
 
       return {
         userId: config.userId,

@@ -25,14 +25,16 @@ interface TweetImageDownloader {
 }
 
 /**
- * 创建一个可复用的图片下载器，避免每次下载都新建页面
+ * 创建一个可复用的图片下载器，可选择复用现有页面
  * @param context 已初始化的浏览器上下文
  * @param options 下载相关配置
+ * @param downloadPage 可选的复用页面（提供时不新建页面）
  * @returns 下载器（在未开启下载时返回空实现）
  */
 export async function createTweetImageDownloader(
   context: IBrowserContext,
   options: FetchOptions,
+  downloadPage?: Page,
 ): Promise<TweetImageDownloader> {
   if (!options.downloadImages) {
     // 未开启下载时返回空实现，保持调用端逻辑一致
@@ -51,14 +53,20 @@ export async function createTweetImageDownloader(
   // 确保根目录存在
   await mkdir(absoluteRoot, { recursive: true })
 
+  // 未传入页面时才创建并拥有页面，避免误关闭外部页面
+  const shouldCreatePage = !downloadPage
   // 复用一个下载页面，依靠 waitForResponse 来拿到浏览器端的图片响应
-  const downloadPage = await context.newPage()
-  await downloadPage.goto('about:blank').catch(() => {})
+  const activePage = downloadPage ?? await context.newPage()
+  if (shouldCreatePage) {
+    await activePage.goto('about:blank').catch(() => {})
+  }
 
   return {
-    downloadTweets: async (tweets: TweetInfo[]) => downloadTweetsWithPage(downloadPage, absoluteRoot, tweets),
+    downloadTweets: async (tweets: TweetInfo[]) => downloadTweetsWithPage(activePage, absoluteRoot, tweets),
     close: async () => {
-      await downloadPage.close().catch(() => {})
+      if (shouldCreatePage) {
+        await activePage.close().catch(() => {})
+      }
     },
   }
 }
