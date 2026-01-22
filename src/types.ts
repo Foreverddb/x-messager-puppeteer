@@ -8,6 +8,14 @@ export interface AuthInfo {
 }
 
 /**
+ * 初始化上下文可选项
+ */
+export interface InitContextOptions {
+  headless?: boolean
+  proxyServer?: string
+}
+
+/**
  * 推文信息接口
  */
 export interface TweetInfo {

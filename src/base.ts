@@ -1,16 +1,16 @@
-import type { AuthInfo, FetchOptions, IBrowserContext, TweetInfo, UserTweetsResult } from './types'
+import type { AuthInfo, FetchOptions, IBrowserContext, InitContextOptions, TweetInfo, UserTweetsResult } from './types'
 import puppeteer from 'puppeteer'
 import { sleep } from './common'
 
 /**
  * 创建一个已验证授权的浏览器上下文
  */
-export async function createAuthedContext(authInfo: AuthInfo, proxyServer: string | undefined): Promise<IBrowserContext> {
+export async function createAuthedContext(authInfo: AuthInfo, options: InitContextOptions): Promise<IBrowserContext> {
   const browser = await puppeteer.launch({
-    headless: true,
+    headless: options.headless,
   })
   const context = await browser.createBrowserContext({
-    proxyServer,
+    proxyServer: options.proxyServer,
   })
 
   await context.setCookie({
