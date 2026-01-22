@@ -5,7 +5,7 @@ packages:
   - examples/*
 
 catalog:
-  puppeteer: 'catalog:'
+  puppeteer: ^24.35.0
 
 catalogMode: prefer
 

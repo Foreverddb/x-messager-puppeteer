@@ -41,7 +41,7 @@ catalogs:
       version: 7.2.7
   default:
     puppeteer:
-      specifier: 'catalog:'
+      specifier: ^24.35.0
       version: 24.35.0
   inlined:
     '@antfu/utils':
