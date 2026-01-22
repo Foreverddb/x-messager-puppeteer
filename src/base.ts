@@ -5,7 +5,7 @@ import { sleep } from './common'
 /**
  * 创建一个已验证授权的浏览器上下文
  */
-export async function createAuthedContext(authInfo: AuthInfo, options: InitContextOptions): Promise<IBrowserContext> {
+export async function createAuthedContext(authInfo: AuthInfo, options: InitContextOptions & Partial<FetchOptions>): Promise<IBrowserContext> {
   const browser = await puppeteer.launch({
     headless: options.headless,
   })
@@ -20,7 +20,9 @@ export async function createAuthedContext(authInfo: AuthInfo, options: InitConte
     path: '/',
   })
 
+  // 将 fetch 选项存储在上下文中，供后续使用
   Object.assign(context, {
+    fetchOptions: options,
     async closeAll() {
       await context.close()
       await browser.close()
@@ -38,6 +40,43 @@ export async function createAuthedContext(authInfo: AuthInfo, options: InitConte
  * @returns 推文列表，获取失败的推文不会在列表中
  */
 export async function fetchSingleUser(context: IBrowserContext, userId: string, startTime: string): Promise<TweetInfo[]> {
+  const options = context.fetchOptions || {}
+  const maxRetries = options.maxRetries ?? 3
+  const beforeRetry = options.beforeRetry
+
+  let lastError: Error | null = null
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      if (attempt === 1) {
+        console.warn(`开始获取用户 ${userId} 的推文...`)
+      }
+      else {
+        console.warn(`重试获取用户 ${userId} 的推文 (第 ${attempt}/${maxRetries} 次)...`)
+      }
+
+      return await scrapeUserTweets(context, userId, startTime)
+    }
+    catch (error) {
+      lastError = error as Error
+      console.error(`获取用户 ${userId} 的推文失败 (第 ${attempt}/${maxRetries} 次):`, error)
+
+      if (attempt < maxRetries && beforeRetry) {
+        try {
+          await beforeRetry(userId, attempt, lastError)
+        }
+        catch (hookError) {
+          console.error(`用户 ${userId} 的 beforeRetry 钩子执行失败:`, hookError)
+        }
+      }
+    }
+  }
+
+  console.error(`用户 ${userId} 在 ${maxRetries} 次尝试后仍然失败`)
+  throw lastError ?? new Error(`Failed to fetch tweets for user ${userId}`)
+}
+
+async function scrapeUserTweets(context: IBrowserContext, userId: string, startTime: string): Promise<TweetInfo[]> {
   const page = await context.newPage()
   await page.setViewport({
     width: 1920,
@@ -210,88 +249,54 @@ export async function fetchSingleUser(context: IBrowserContext, userId: string, 
       scrollAttempts++
     }
 
-    await page.close()
-
     return tweets
   }
-  catch (error) {
-    console.error('抓取推文时发生错误:', error)
-    await page.close()
-    throw error
+  finally {
+    await page.close().catch(() => {})
   }
 }
 
 /**
- * 批量获取多个用户从指定时间开始的所有推文（并行执行，支持重试）
+ * 批量获取多个用户从指定时间开始的所有推文（并行执行，重试逻辑由 fetchSingleUser 处理）
  * @param context 初始化过的浏览器上下文
  * @param userConfigs 用户配置列表，每项包含userId和startTime
- * @param options 可选配置项，包括重试次数和重试钩子
  * @returns 用户推文结果列表，每项包含userId、tweets列表和latestTweetTime
  */
 export async function fetchMultipleUser(
   context: IBrowserContext,
   userConfigs: Array<{ userId: string, startTime: string }>,
-  options?: FetchOptions,
 ): Promise<UserTweetsResult[]> {
-  const maxRetries = options?.maxRetries ?? 3
-  const beforeRetry = options?.beforeRetry
-
-  // 为每个用户创建带重试机制的并行任务
+  // 为每个用户创建并行任务
   const fetchTasks = userConfigs.map(async (config) => {
-    let lastError: Error | null = null
+    try {
+      const tweets = await fetchSingleUser(context, config.userId, config.startTime)
 
-    // 重试循环
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        if (attempt === 1) {
-          console.warn(`开始获取用户 ${config.userId} 的推文...`)
-        }
-        else {
-          console.warn(`重试获取用户 ${config.userId} 的推文 (第 ${attempt}/${maxRetries} 次)...`)
-        }
-
-        const tweets = await fetchSingleUser(context, config.userId, config.startTime)
-
-        // 找到最新推文的时间
-        let latestTweetTime: string | null = null
-        if (tweets.length > 0) {
-          // 推文按时间降序排列，第一条即为最新
-          const sortedTweets = [...tweets].sort((a, b) => {
-            return new Date(b.time).getTime() - new Date(a.time).getTime()
-          })
-          latestTweetTime = sortedTweets[0].time
-        }
-
-        console.warn(`成功获取用户 ${config.userId} 的 ${tweets.length} 条推文${latestTweetTime ? `，最新推文时间: ${latestTweetTime}` : ''}`)
-
-        return {
-          userId: config.userId,
-          tweets,
-          latestTweetTime,
-        }
+      // 找到最新推文的时间
+      let latestTweetTime: string | null = null
+      if (tweets.length > 0) {
+        // 推文按时间降序排列，第一条即为最新
+        const sortedTweets = [...tweets].sort((a, b) => {
+          return new Date(b.time).getTime() - new Date(a.time).getTime()
+        })
+        latestTweetTime = sortedTweets[0].time
       }
-      catch (error) {
-        lastError = error as Error
-        console.error(`获取用户 ${config.userId} 的推文失败 (第 ${attempt}/${maxRetries} 次):`, error)
 
-        // 如果还有重试机会，执行重试前的钩子
-        if (attempt < maxRetries && beforeRetry) {
-          try {
-            await beforeRetry(config.userId, attempt, lastError)
-          }
-          catch (hookError) {
-            console.error(`用户 ${config.userId} 的 beforeRetry 钩子执行失败:`, hookError)
-          }
-        }
+      console.warn(`成功获取用户 ${config.userId} 的 ${tweets.length} 条推文${latestTweetTime ? `，最新推文时间: ${latestTweetTime}` : ''}`)
+
+      return {
+        userId: config.userId,
+        tweets,
+        latestTweetTime,
       }
     }
+    catch (error) {
+      console.error(`获取用户 ${config.userId} 的推文失败:`, error)
 
-    // 所有重试都失败，返回空结果
-    console.error(`用户 ${config.userId} 在 ${maxRetries} 次尝试后仍然失败`)
-    return {
-      userId: config.userId,
-      tweets: [],
-      latestTweetTime: null,
+      return {
+        userId: config.userId,
+        tweets: [],
+        latestTweetTime: null,
+      }
     }
   })
 

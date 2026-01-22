@@ -56,4 +56,5 @@ export interface FetchOptions {
  */
 export type IBrowserContext = BrowserContext & {
   closeAll: () => Promise<void>
+  fetchOptions?: FetchOptions
 }

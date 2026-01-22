@@ -39,7 +39,9 @@ import { createAuthedContext, fetchSingleUser } from 'x-messager-puppeteer'
 
 const context = await createAuthedContext({
   auth_token: 'your_twitter_auth_token',
-}, '127.0.0.1:7890') // Optional proxy
+}, {
+  proxyServer: '127.0.0.1:7890', // Optional proxy
+})
 
 const tweets = await fetchSingleUser(
   context,
@@ -89,30 +91,30 @@ import { createAuthedContext, fetchMultipleUser } from 'x-messager-puppeteer'
 
 const context = await createAuthedContext({
   auth_token: 'your_twitter_auth_token',
-}, '127.0.0.1:7890')
+}, {
+  proxyServer: '127.0.0.1:7890',
+  maxRetries: 3, // Retry up to 3 times per user
+  beforeRetry: async (userId, attempt, error) => {
+    console.log(`Retrying ${userId} (attempt ${attempt})`)
+    console.log(`Error: ${error.message}`)
+
+    // Wait before retry to avoid rate limiting
+    await new Promise(resolve => setTimeout(resolve, 5000))
+
+    // You can also:
+    // - Log errors to a monitoring service
+    // - Clear browser cache
+    // - Rotate proxies
+    // - Send notifications
+  },
+})
 
 const results = await fetchMultipleUser(
   context,
   [
     { userId: 'user1', startTime: '2026-01-15T00:00:00.000Z' },
     { userId: 'user2', startTime: '2026-01-15T00:00:00.000Z' },
-  ],
-  {
-    maxRetries: 3, // Retry up to 3 times per user
-    beforeRetry: async (userId, attempt, error) => {
-      console.log(`Retrying ${userId} (attempt ${attempt})`)
-      console.log(`Error: ${error.message}`)
-
-      // Wait before retry to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 5000))
-
-      // You can also:
-      // - Log errors to a monitoring service
-      // - Clear browser cache
-      // - Rotate proxies
-      // - Send notifications
-    },
-  }
+  ]
 )
 
 await context.closeAll()
@@ -120,13 +122,17 @@ await context.closeAll()
 
 ## API Reference
 
-### `createAuthedContext(authInfo, proxyServer?)`
+### `createAuthedContext(authInfo, options?)`
 
 Create an authenticated browser context for Twitter/X.
 
 **Parameters:**
 - `authInfo`: Object with `auth_token` property
-- `proxyServer` (optional): Proxy server address (e.g., `'127.0.0.1:7890'`)
+- `options` (optional): Combines browser init options and fetch retry config
+  - `proxyServer`: Proxy server address (e.g., `'127.0.0.1:7890'`)
+  - `headless`: Whether to run the browser in headless mode
+  - `maxRetries`: Max retry attempts per user (default: `3`)
+  - `beforeRetry`: Hook executed before each retry `(userId, attempt, error)`
 
 **Returns:** `Promise<IBrowserContext>`
 
@@ -140,6 +146,8 @@ Fetch tweets from a single user.
 - `context`: Authenticated browser context
 - `userId`: Twitter username (without @)
 - `startTime`: ISO 8601 timestamp string (e.g., `'2026-01-15T00:00:00.000Z'`)
+
+Automatically retries according to the `maxRetries`/`beforeRetry` options provided when creating the context.
 
 **Returns:** `Promise<TweetInfo[]>`
 
@@ -155,26 +163,13 @@ interface TweetInfo {
 
 ---
 
-### `fetchMultipleUser(context, userConfigs, options?)`
+### `fetchMultipleUser(context, userConfigs)`
 
-Fetch tweets from multiple users in parallel.
+Fetch tweets from multiple users in parallel. Each fetch automatically uses the retry rules configured on the browser context.
 
 **Parameters:**
 - `context`: Authenticated browser context
 - `userConfigs`: Array of `{ userId: string, startTime: string }`
-- `options` (optional): Configuration options
-
-**Options Interface:**
-```typescript
-interface FetchOptions {
-  maxRetries?: number // Default: 3
-  beforeRetry?: (
-    userId: string,
-    attempt: number,
-    error: Error
-  ) => Promise<void> | void
-}
-```
 
 **Returns:** `Promise<UserTweetsResult[]>`
 
