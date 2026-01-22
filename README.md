@@ -13,7 +13,7 @@ A powerful TypeScript library for fetching Twitter/X user tweets using Puppeteer
 - 🔄 **Automatic Retry** - Configurable retry mechanism with customizable hooks
 - 📅 **Time-based Filtering** - Fetch tweets from a specific start time
 - 🖼️ **Image Support** - Extract tweet images automatically
-- 📥 **Optional Downloads** - Save images locally with organized user folders
+- 📥 **Optional Downloads** - Save images locally with organized user folders during scraping
 - 🎯 **Latest Tweet Tracking** - Get the most recent tweet timestamp for each user
 - 💪 **TypeScript** - Full type safety and IntelliSense support
 - ⚡ **Efficient** - Smart scrolling and deduplication
@@ -58,19 +58,17 @@ tweets.forEach((tweet) => {
 await context.closeAll()
 ```
 
-When `downloadImages` is enabled, every tweet image is saved inside `<project root>/<downloadPath>/<userId>/<timestamp>-<index>.ext`. The `imageUrls` array for each tweet then contains relative paths such as `username/1700000000-1.jpg` instead of remote URLs.
+When `downloadImages` is enabled, every tweet image is saved inside `<project root>/<downloadPath>/<userId>/<timestamp>-<index>.ext`. The `imageUrls` array for each tweet then contains relative paths such as `username/1700000000-1.jpg` instead of remote URLs. Downloads are performed as tweets are collected (before each scroll) and reuse the active user page.
 
 ### Batch Processing - Multiple Users
 
 ```typescript
-import { createAuthedContext, fetchMultipleUser } from 'x-messager-puppeteer'
-
-const context = await createAuthedContext({
-  auth_token: 'your_twitter_auth_token',
-})
+import { fetchMultipleUser } from 'x-messager-puppeteer'
 
 const results = await fetchMultipleUser(
-  context,
+  {
+    auth_token: 'your_twitter_auth_token',
+  },
   [
     { userId: 'user1', startTime: '2026-01-15T00:00:00.000Z' },
     { userId: 'user2', startTime: '2026-01-15T00:00:00.000Z' },
@@ -90,39 +88,34 @@ await context.closeAll()
 ### Advanced - With Retry Mechanism
 
 ```typescript
-import { createAuthedContext, fetchMultipleUser } from 'x-messager-puppeteer'
-
-const context = await createAuthedContext({
-  auth_token: 'your_twitter_auth_token',
-}, {
-  proxyServer: '127.0.0.1:7890',
-  downloadImages: true,
-  downloadPath: 'downloads/tweet-images',
-  maxRetries: 3, // Retry up to 3 times per user
-  beforeRetry: async (userId, attempt, error) => {
-    console.log(`Retrying ${userId} (attempt ${attempt})`)
-    console.log(`Error: ${error.message}`)
-
-    // Wait before retry to avoid rate limiting
-    await new Promise(resolve => setTimeout(resolve, 5000))
-
-    // You can also:
-    // - Log errors to a monitoring service
-    // - Clear browser cache
-    // - Rotate proxies
-    // - Send notifications
-  },
-})
+import { fetchMultipleUser } from 'x-messager-puppeteer'
 
 const results = await fetchMultipleUser(
-  context,
+  {
+    auth_token: 'your_twitter_auth_token',
+    proxyServer: '127.0.0.1:7890',
+    downloadImages: true,
+    downloadPath: 'downloads/tweet-images',
+    maxRetries: 3, // Retry up to 3 times per user
+    beforeRetry: async (userId, attempt, error) => {
+      console.log(`Retrying ${userId} (attempt ${attempt})`)
+      console.log(`Error: ${error.message}`)
+
+      // Wait before retry to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 5000))
+
+      // You can also:
+      // - Log errors to a monitoring service
+      // - Clear browser cache
+      // - Rotate proxies
+      // - Send notifications
+    },
+  },
   [
     { userId: 'user1', startTime: '2026-01-15T00:00:00.000Z' },
     { userId: 'user2', startTime: '2026-01-15T00:00:00.000Z' },
   ]
 )
-
-await context.closeAll()
 ```
 
 ## API Reference
@@ -138,7 +131,7 @@ Create an authenticated browser context for Twitter/X.
   - `headless`: Whether to run the browser in headless mode
   - `maxRetries`: Max retry attempts per user (default: `3`)
   - `beforeRetry`: Hook executed before each retry `(userId, attempt, error)`
-  - `downloadImages`: Toggle automatic tweet image download (default: `false`)
+  - `downloadImages`: Toggle automatic tweet image download during scraping (default: `false`)
   - `downloadPath`: Target directory for downloaded images, relative to your project root (default: `tweet-images`)
 
 **Returns:** `Promise<IBrowserContext>`
@@ -158,7 +151,7 @@ Automatically retries according to the `maxRetries`/`beforeRetry` options provid
 
 **Returns:** `Promise<TweetInfo[]>`
 
-If `downloadImages` is enabled on the context, each `imageUrls` entry becomes a relative file path (e.g., `username/1700000000-1.jpg`). Otherwise, the original remote URLs are returned.
+If `downloadImages` is enabled on the context, each `imageUrls` entry becomes a relative file path (e.g., `username/1700000000-1.jpg`). Otherwise, the original remote URLs are returned. Images are downloaded while scrolling, using the current user page.
 
 **TweetInfo Interface:**
 ```typescript
