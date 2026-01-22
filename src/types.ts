@@ -29,6 +29,8 @@ export interface TweetInfo {
   time: string
   /** 推文中的图片 URLs */
   imageUrls: string[]
+  /** 是否为转发推文 */
+  isReposted: boolean
 }
 
 /**

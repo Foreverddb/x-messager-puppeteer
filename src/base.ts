@@ -125,6 +125,7 @@ async function scrapeUserTweets(context: IBrowserContext, userId: string, startT
           time: string
           imageUrls: string[]
           isPinned: boolean
+          isReposted: boolean
         }> = []
 
         articles.forEach((article) => {
@@ -132,6 +133,8 @@ async function scrapeUserTweets(context: IBrowserContext, userId: string, startT
             // 检查是否是置顶推文
             const socialContext = article.querySelector('[data-testid="socialContext"]')
             const isPinned = socialContext?.textContent?.includes('Pinned') || false
+            // 是否为转发推文
+            const isReposted = socialContext?.textContent?.includes('reposted') || false
 
             // 获取推文链接作为唯一ID
             const tweetLink = article.querySelector('a[href*="/status/"]')
@@ -176,6 +179,7 @@ async function scrapeUserTweets(context: IBrowserContext, userId: string, startT
               time: datetime,
               imageUrls,
               isPinned,
+              isReposted,
             })
           }
           catch (error) {
@@ -225,6 +229,7 @@ async function scrapeUserTweets(context: IBrowserContext, userId: string, startT
             textContent: tweet.textContent,
             time: tweet.time,
             imageUrls: tweet.imageUrls,
+            isReposted: tweet.isReposted,
           })
 
           addedCount++
