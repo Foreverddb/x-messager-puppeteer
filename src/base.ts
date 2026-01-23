@@ -102,6 +102,10 @@ async function scrapeUserTweets(context: IBrowserContext, userId: string, startT
       throw new Error(`${userId}用户不存在[empty_state_header_text]`)
     }
 
+    const username = await page.$eval('[data-testid="UserName"]', (element) => {
+      return element.textContent.trim()
+    })
+
     // 等待推文加载
     await page.waitForSelector('article[data-testid="tweet"]', { timeout: 30000 })
     await sleep(2)
@@ -117,79 +121,111 @@ async function scrapeUserTweets(context: IBrowserContext, userId: string, startT
 
     while (scrollAttempts < maxScrollAttempts && !hasReachedStartTime) {
       // 提取当前页面上的所有推文
-      const newTweets = await page.$$eval('article[data-testid="tweet"]', (articles, args) => {
-        const results: Array<{
-          id: string
-          userId: string
-          textContent: string
-          time: string
-          imageUrls: string[]
-          isPinned: boolean
-          isReposted: boolean
-        }> = []
+      let newTweets: Array<Omit<TweetInfo, 'username'> & { isPinned: boolean }> = []
 
-        articles.forEach((article) => {
-          try {
+      try {
+        newTweets = await page.$$eval('article[data-testid="tweet"]', (articles, args) => {
+          const results: Array<Omit<TweetInfo, 'username'> & { isPinned: boolean }> = []
+
+          articles.forEach((article) => {
+            try {
             // 检查是否是置顶推文
-            const socialContext = article.querySelector('[data-testid="socialContext"]')
-            const isPinned = socialContext?.textContent?.includes('Pinned') || false
-            // 是否为转发推文
-            const isReposted = socialContext?.textContent?.includes('reposted') || false
+              const socialContext = article.querySelector('[data-testid="socialContext"]')
+              const isPinned = socialContext?.textContent?.includes('Pinned') || false
+              // 是否为转发推文
+              const isReposted = socialContext?.textContent?.includes('reposted') || false
 
-            // 获取推文链接作为唯一ID
-            const tweetLink = article.querySelector('a[href*="/status/"]')
-            if (!tweetLink)
-              return
+              // 获取推文链接作为唯一ID
+              const tweetLink = article.querySelector('a[href*="/status/"]')
+              if (!tweetLink)
+                return
 
-            const tweetId = (tweetLink as { href: string }).href
+              const tweetId = (tweetLink as { href: string }).href
 
-            // 检查是否是当前用户的推文（避免获取到转推等）
-            const userLink = article.querySelector(`a[href="/${args.targetUserId}"]`)
-            if (!userLink)
-              return
+              // 检查是否是当前用户的推文（避免获取到转推等）
+              const userLink = article.querySelector(`a[href="/${args.targetUserId}"]`)
+              if (!userLink)
+                return
 
-            // 获取时间
-            const timeElement = article.querySelector('time[datetime]')
-            if (!timeElement)
-              return
-            const datetime = timeElement.getAttribute('datetime') || ''
+              // 获取时间
+              const timeElement = article.querySelector('time[datetime]')
+              if (!timeElement)
+                return
+              const datetime = timeElement.getAttribute('datetime') || ''
 
-            // 获取文本内容
-            let textContent = ''
-            const tweetTextElement = article.querySelector('[data-testid="tweetText"]')
-            if (tweetTextElement) {
-              textContent = tweetTextElement.textContent || ''
-            }
-
-            // 获取图片URLs
-            const imageUrls: string[] = []
-            const tweetPhotos = article.querySelectorAll('[data-testid="tweetPhoto"] img')
-            tweetPhotos.forEach((img: any) => {
-              const src = (img as { src: string }).src
-              if (src && !src.includes('profile_images')) {
-                // 过滤掉头像，只保留推文中的图片
-                imageUrls.push(src)
+              // 获取文本内容
+              let textContent = ''
+              const tweetTextElement = article.querySelector('[data-testid="tweetText"]')
+              if (tweetTextElement) {
+                textContent = tweetTextElement.textContent || ''
               }
-            })
 
-            results.push({
-              id: tweetId,
-              userId: args.targetUserId,
-              textContent: textContent.trim(),
-              time: datetime,
-              imageUrls,
-              isPinned,
-              isReposted,
-            })
-          }
-          catch (error) {
+              // 获取图片URLs
+              const imageUrls: string[] = []
+              const tweetPhotos = article.querySelectorAll('[data-testid="tweetPhoto"] img')
+              tweetPhotos.forEach((img: any) => {
+                const src = (img as { src: string }).src
+                if (src && !src.includes('profile_images')) {
+                // 过滤掉头像，只保留推文中的图片
+                  imageUrls.push(src)
+                }
+              })
+
+              const tweetData = {
+                id: tweetId,
+                userId: args.targetUserId,
+                textContent: textContent.trim(),
+                time: datetime,
+                imageUrls,
+                isPinned,
+                isReposted,
+              }
+
+              // 获取引用推文
+              const ltrTweets = article.querySelectorAll('div[dir="ltr"] > span')
+              let quoteTweet: any | null = null
+              ltrTweets.forEach((ltr: any) => {
+                if (ltr?.textContent?.includes('Quote')) {
+                // 找到引用标志的最近父元素，其引用的推文内容就在其第二个子元素
+                  quoteTweet = ltr?.closest('div:has([data-testid="tweetText"])')
+                }
+              })
+              if (quoteTweet) {
+                let quoteTweetUserNameContent = ''
+                const quoteTweetUserName = quoteTweet?.querySelector('div[dir="ltr"] > span > span')
+                if (quoteTweetUserName) {
+                  quoteTweetUserNameContent = quoteTweetUserName?.textContent || ''
+                }
+                const quoteTweetContent = quoteTweet?.querySelector('[data-testid="tweetText"]')
+                let quoteTweetTextContent = ''
+                if (quoteTweetContent) {
+                  quoteTweetTextContent = quoteTweetContent.textContent || ''
+                }
+
+                Object.assign(tweetData, {
+                  quoteTweet: {
+                    userName: quoteTweetUserNameContent,
+                    text: quoteTweetTextContent,
+                  },
+                })
+              }
+
+              results.push(tweetData)
+            }
+            catch (error) {
             // 解析单个推文时出错，跳过该推文
-            console.error(userId, '解析单个推文时出错:', error)
-          }
-        })
+              console.error(userId, '解析单个推文时出错:', error)
+            }
+          })
 
-        return results
-      }, { targetUserId: userId })
+          return results
+        }, { targetUserId: userId })
+      }
+      catch (error) {
+        console.error(`提取推文时出错 (${userId}):`, error)
+        // 确保 newTweets 是空数组，继续执行
+        newTweets = []
+      }
 
       // 处理新推文并去重
       const pendingTweets: TweetInfo[] = []
@@ -203,7 +239,7 @@ async function scrapeUserTweets(context: IBrowserContext, userId: string, startT
           // 检查时间是否早于startTime
           const tweetTime = new Date(tweet.time).getTime()
 
-          console.warn(`[${tweet.id} ${new Date().toLocaleTimeString()}]对比时间，${tweetTime} [${tweet.time}] - ${startTimeMs} [${startTime}]`)
+          console.warn(`[${tweet.id} ${new Date().toLocaleTimeString()}]发推时间：[${tweet.time}]]`)
 
           if (startTime && tweetTime < startTimeMs) {
             // 如果是置顶推文且时间早于startTime，跳过但不停止抓取
@@ -224,12 +260,14 @@ async function scrapeUserTweets(context: IBrowserContext, userId: string, startT
           nonPinnedOldTweetCount = 0
 
           pendingTweets.push({
-            url: tweet.id,
+            id: tweet.id,
             userId: tweet.userId,
             textContent: tweet.textContent,
             time: tweet.time,
             imageUrls: tweet.imageUrls,
             isReposted: tweet.isReposted,
+            quoteTweet: tweet.quoteTweet,
+            username,
           })
 
           addedCount++
@@ -289,8 +327,9 @@ export async function fetchMultipleUser(
 ): Promise<UserTweetsResult[]> {
   // 为每个用户创建并行任务
   const fetchTasks = userConfigs.map(async (config) => {
+    const context = await createAuthedContext(contextOptions, contextOptions)
+
     try {
-      const context = await createAuthedContext(contextOptions, contextOptions)
       const tweets = await fetchSingleUser(context, config.userId, config.startTime)
 
       // 找到最新推文的时间
@@ -315,7 +354,7 @@ export async function fetchMultipleUser(
     }
     catch (error) {
       console.error(`获取用户 ${config.userId} 的推文失败:`, error)
-
+      await context.closeAll()
       return {
         userId: config.userId,
         tweets: [],

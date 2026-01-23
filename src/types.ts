@@ -19,8 +19,10 @@ export interface InitContextOptions {
  * 推文信息接口
  */
 export interface TweetInfo {
-  /** 推文链接 */
-  url: string
+  /** 推文id。以链接形式 */
+  id: string
+  /** 用户名称 */
+  username: string
   /** 用户ID */
   userId: string
   /** 推文文本内容 */
@@ -31,6 +33,11 @@ export interface TweetInfo {
   imageUrls: string[]
   /** 是否为转发推文 */
   isReposted: boolean
+  /** 引用推文 */
+  quoteTweet?: {
+    text: string
+    userName: string
+  }
 }
 
 /**
