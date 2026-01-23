@@ -202,9 +202,17 @@ async function scrapeUserTweets(context: IBrowserContext, userId: string, startT
                   quoteTweetTextContent = quoteTweetContent.textContent || ''
                 }
 
+                // 获取推文链接作为唯一ID
+                const tweetLink = quoteTweet.querySelector('a[href*="/status/"]')
+                if (!tweetLink)
+                  return
+
+                const tweetId = (tweetLink as { href: string }).href
+
                 Object.assign(tweetData, {
                   quoteTweet: {
-                    userName: quoteTweetUserNameContent,
+                    id: tweetId,
+                    username: quoteTweetUserNameContent,
                     text: quoteTweetTextContent,
                   },
                 })

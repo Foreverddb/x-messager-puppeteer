@@ -35,8 +35,9 @@ export interface TweetInfo {
   isReposted: boolean
   /** 引用推文 */
   quoteTweet?: {
-    text: string
-    userName: string
+    id: string
+    textContent: string
+    username: string
   }
 }
 
