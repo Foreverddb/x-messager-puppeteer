@@ -5,6 +5,8 @@
 
 A powerful TypeScript library for fetching Twitter/X user tweets using Puppeteer with parallel processing and retry mechanisms.
 
+[⚠️ 免责声明 / Disclaimer](#-免责声明--disclaimer)
+
 ## Features
 
 ✨ **Key Features:**
@@ -223,3 +225,53 @@ pnpm typecheck
 # Linting
 pnpm lint
 ```
+
+## ⚠️ 免责声明 / Disclaimer
+
+### 中文版
+
+**重要提示：请仔细阅读本免责声明**
+
+本项目（X-Messager-Puppeteer）仅供学习和研究网络爬虫技术使用，旨在帮助开发者理解和学习自动化浏览器操作、数据抓取等相关技术知识。
+
+1. **教育目的**：本项目的开发和发布纯粹出于教育和学习目的，无意侵犯任何个人、组织或平台的合法权益。
+
+2. **使用责任**：使用本工具库的用户应当遵守所在国家和地区的法律法规，以及目标网站的服务条款和使用协议。用户在使用本工具时应当：
+   - 遵守相关法律法规和网站的robots.txt协议
+   - 尊重网站的服务条款和使用限制
+   - 不得将本工具用于任何非法用途或侵犯他人权益的行为
+   - 合理控制访问频率，避免对目标服务器造成过大负担
+
+3. **责任限制**：任何个人或组织使用本工具库所产生的一切法律责任、经济损失、数据损失或其他任何形式的损害，均由使用者本人承担，与本项目开发者及贡献者无关。本项目开发者不对使用本工具所造成的任何直接或间接后果负责。
+
+4. **无担保声明**：本项目按"现状"提供，不提供任何明示或暗示的担保，包括但不限于适销性、特定用途适用性和非侵权性的担保。
+
+5. **知识产权**：用户应当尊重目标网站的知识产权和数据所有权，不得将抓取的数据用于商业用途或其他侵权行为。
+
+**通过下载、安装或使用本项目,即表示您已阅读、理解并同意接受本免责声明的所有条款。如果您不同意本免责声明的任何内容，请立即停止使用本项目。**
+
+---
+
+### English Version
+
+**IMPORTANT: Please read this disclaimer carefully**
+
+This project (X-Messager-Puppeteer) is intended solely for learning and research purposes related to web scraping technology, aiming to help developers understand and learn about automated browser operations, data extraction, and related technical knowledge.
+
+1. **Educational Purpose**: The development and release of this project are purely for educational and learning purposes, with no intention to infringe upon the legitimate rights and interests of any individual, organization, or platform.
+
+2. **User Responsibility**: Users of this tool library should comply with the laws and regulations of their country and region, as well as the terms of service and usage agreements of target websites. When using this tool, users should:
+   - Comply with relevant laws, regulations, and the robots.txt protocol of websites
+   - Respect the terms of service and usage restrictions of websites
+   - Not use this tool for any illegal purposes or activities that infringe upon the rights of others
+   - Reasonably control access frequency to avoid placing excessive burden on target servers
+
+3. **Limitation of Liability**: Any legal liability, economic loss, data loss, or any other form of damage arising from the use of this tool library by any individual or organization shall be borne by the user themselves and is unrelated to the developers and contributors of this project. The project developers are not responsible for any direct or indirect consequences caused by the use of this tool.
+
+4. **No Warranty**: This project is provided "as is" without any express or implied warranties, including but not limited to warranties of merchantability, fitness for a particular purpose, and non-infringement.
+
+5. **Intellectual Property**: Users should respect the intellectual property rights and data ownership of target websites and shall not use scraped data for commercial purposes or other infringing activities.
+
+**By downloading, installing, or using this project, you acknowledge that you have read, understood, and agree to accept all terms of this disclaimer. If you do not agree with any part of this disclaimer, please stop using this project immediately.**
+
+---
